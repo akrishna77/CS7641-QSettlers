@@ -37,6 +37,14 @@ Using reinforcement learning to solve Settlers of Catan
         
         
         
+ ## Automating games with bots
+     - As of Oct 20th, the server now automatically spins up several instances of our custom agent when the server starts, meaning that manual connections aren't necessary.
+        - The following command will automatically play 10 games in a row, each game comprising of 3 JSettlers agents and 1 Custom Agent
+        - [Server] : java -jar JSettlersServer-2.0.00.jar -Djsettlers.jsettlers.bots.percent3p=25 -Djsettlers.bots.botgames.total=10
+        - No client connections are necessary with this call; but you can connect a human-player client to join and spectate the games as they take place.
+        
+        
+        
 #Promising Approach:
 
     - Create a python server that's running the DQN agent. In Jsettlers, write code for a custom SOCRobotBrain that will connect to our DQN server when instantiated, and will send over the game state whenever it is the agent's turn. The python server can receive this data, process it with the neural network, and send back the best action to take. This requires learning the object details of a SOCGameState, but it seems like it's a proper way to connect a DQN agent to this Java Framework.
