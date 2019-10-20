@@ -6,7 +6,7 @@ Using reinforcement learning to solve Settlers of Catan
 
   - Newest JAR file available for download at http://nand.net/jsettlers/ doesn't have newest features. Instead, you must download the source repository over at https://github.com/jdmonin/JSettlers2 and build the Gradle project into JAR files yourself. The two built files for server and client are in the root directory under JSettlers-2.0.000.jar (client) and JSettlersServer-2.0.00.jar (server).
   
-  - To run a game, start the server by running 'java -jar JSettlersServer-2.0.00.jar', and connect to the local server by running 'java -jar JSettlers-2.0.000.jar localhost 8880'. The client will then activate the GUI and allow you to start or connect to games.
+  - The JARs available have been built from the modified JSettlers project included in this repository.
   
   
   
