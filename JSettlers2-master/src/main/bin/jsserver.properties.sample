@@ -1,0 +1,253 @@
+# Sample jsserver.properties file with descriptions:
+# See bottom of file for copyright and license information (GPLv3).
+#
+# All JSettlers Server properties and their defaults are given here.
+# Boolean flag properties' values are shown here as =Y or =N; you can
+# use =T or =F instead, and flag values aren't case-sensitive.
+# You can also get a brief description of all properties by running
+#	java -jar JSettlersServer.jar --help
+#
+# To use a properties file with the server, name it jsserver.properties
+# and place it in the directory where the JSettlers Server will run.
+# Remove the leading comment character ("#") from the line of any property that
+# you want to change from its default value. Make sure to not have any
+# whitespace at end of the line, or it will become part of the value.
+#
+# The file is read at startup, but not re-read afterwards if it's updated.
+# Any server option given on the command line overrides the same option's value
+# in the properties file. To determine if the server is reading the properties
+# file, look for this text near the start of the console output:
+#   Reading startup properties from jsserver.properties
+
+# -- Beginning of list of recognized available properties --
+
+# TCP port number for server to listen for client connections.
+# jsettlers.port=8880
+
+# Maximum connection count, including robots: The number of client players
+# who can connect is (jsettlers.connections - jsettlers.startrobots).
+# This default value's goal is to prevent overloading the server's capacity;
+# large busy servers will want to set it higher and monitor cpu and memory use.
+# jsettlers.connections=40
+
+# Number of robots to create at startup. About 30% will be "smart" robots, the
+# other 70% will be "fast" robots. Each robot can play in many games at once.
+# jsettlers.startrobots=7
+
+# Per-client limits:
+
+# Maximum simultaneous games that a client can create.
+# Once a game is completed and deleted (all players leave), they can create
+# another. Set this to -1 for no limit; 0 will disallow any game creation.
+# This limit is ignored for practice games, which run on the client and have
+# no impact on server resources or other clients.
+# jsettlers.client.maxcreategames=5
+
+# Maximum simultaneous chat channels that a client can create.
+# Once a channel is deleted (all members leave), they can create another.
+# Set this to -1 for no limit; 0 will disallow any chat channel creation.
+# jsettlers.client.maxcreatechannels=2
+
+# Game option defaults:
+# To change a Game Option default for new games, for example to activate the
+# house rule "Robber can't return to the desert", set a property named
+# jsettlers.gameopt. + the name and value:
+#   jsettlers.gameopt.RD=y
+# The game option values use the same syntax as the command line; see
+# README.txt section "Parameters and game option defaults".
+# You can also get a list of all default game option values by running
+#	java -jar JSettlersServer.jar --help
+# Note the format of those default values: Some options are shown as "(INTBOOL)"
+# and need both a true/false flag and a numeric value. For example, to change
+# the default winning victory points to 12:
+#   jsettlers.gameopt.vp=t12
+
+# Server Config Validation:
+# (This flag is equivalent to command line option -t or --test-config.)
+# Flag to validate any server properties given in jsserver.properties or on
+# the command line; print whether there were any problems; then exit with
+# code 0 if OK or 1 if problems. If DB connect properties are given, the
+# validation will include connecting to the database; failure to connect
+# successfully will cause exit code 1.
+# This flag should not be set =Y in the actual jsserver.properties file you
+# use for your JSettlers Server, because it will not complete startup and run
+# normally. For testing or validation purposes, use this option on the command
+# line: -t or --test-config or -Djsettlers.test.validate_config=Y
+# (all of which are equivalent to each other).
+# jsettlers.test.validate_config=N
+
+# Optional User Database:
+# JSettlers can optionally use a database for game scores and/or user accounts
+# ("nicknames" and passwords). Here are the properties for server features
+# which require a database, then those for the database connection details.
+# For more info see README.txt section "Database Setup".
+
+# - DB: Server features:
+
+# Flag to save all games in DB: Game name, start time, players, final scores.
+# jsettlers.db.save.games=N
+
+# Flag to require all players to have a user account and password. By default,
+# this is not set and any client can make up their own name to use in games
+# while connected, so long as that name isn't already taken by a user account
+# in the database.
+# jsettlers.accounts.required=N
+
+# Open Registration Mode flag to permit open self-registration of new user
+# accounts. By default, this is not set and clients can't anonymously create
+# accounts, instead must log in first as an Account Admin User.
+# jsettlers.accounts.open=N
+
+# List of Account Admin Users permitted to create accounts and run user-
+# related commands; a comma-separated list of usernames. See Readme section
+# "Security and Admin Users". No other users can create accounts, unless
+# Open Registration Mode is active.
+# Reminder if using non-ascii characters in admin usernames: Remember that java
+# properties files are encoded in ISO-8859-1 not UTF-8 because of backwards
+# compatibility; you may want to create a separate admin-only account with a
+# simpler ascii-only name.
+# jsettlers.accounts.admins=...  # blank by default
+
+# Player account password encryption: BCrypt Work Factor
+# For tuning, BCrypt includes a "Work Factor" parameter; the hashing algorithm
+# runs for 2 ^ WorkFactor rounds, so a larger Work Factor is tougher to
+# brute-force attack but runs slower on your server.
+# Each account's Work Factor is stored with its encrypted password; changing the
+# Work Factor property affects future passwords but not already-encrypted ones.
+# To test the speed of different work factors on your server, run
+# JSettlersServer once with -Djsettlers.db.bcrypt.work_factor=test , which will
+# try a range of work factors and print the timed results.
+# jsettlers.db.bcrypt.work_factor=12
+
+# - DB connection:
+
+# Username for logging into the database server
+# jsettlers.db.user=socuser
+
+# Password for logging into the database server
+# jsettlers.db.pass=socpass
+
+# DB connection URL for JDBC. The format is specific to the DB type
+# you've chosen for your database server and specifies the type,
+# server hostname, and db name.
+# Default, for MySQL named socdata hosted on localhost:
+#   jsettlers.db.url=jdbc:mysql://localhost/socdata
+# For Postgresql hosted on localhost:
+#   jsettlers.db.url=jdbc:postgresql://localhost/socdata
+# For a SQLite file in the current directory:
+#   jsettlers.db.url=jdbc:sqlite:jsettlers.sqlite
+
+# DB driver JAR filename. The driver JAR default is blank, since the filename
+# varies by database type and version. The driver JAR should usually be placed
+# in the same directory as the JSettlersServer JAR, because of Java's
+# restrictions about JARs loading other JARs. You will probably need to
+# download the driver JAR for your DB type; see README.txt for URLs.
+# jsettlers.db.jar=...    # (Blank by default)
+
+# JDBC DB driver class name. Common DB types will automatically set this
+# based on the database type prefix in jsettlers.db.url:
+#   mysql ->    com.mysql.jdbc.Driver
+#   postgres -> org.postgresql.Driver
+#   sqlite ->   org.sqlite.JDBC
+# If you're using another DB type, or that driver class has changed since this
+# jsettlers version was released, you must specify the JDBC driver class name.
+# jsettlers.db.driver=com.mysql.jdbc.Driver
+
+# Debug Options for developers:
+
+# Flag to allow remote debug commands over TCP connections, from a user named
+# "debug". If you set this, for security you should use sqlite or another
+# database type and create the debug user there with a password.
+# Practice games always allow debug commands, since those aren't multiplayer.
+# When this flag is set, the server version banner shown at connect includes
+# the text "debugging is on". For debug command info, login as debug and type
+# *help*; see also README.developer.
+# jsettlers.allow.debug=N
+
+# Run this many robot-only games, a few at a time, until this many have been
+# played; allow bot-only games. If this property's value != 0, a robots-only
+# game can be started with the *STARTBOTGAME* debug command. This can be used
+# to test the bots with any given combination of game options and scenarios.
+# To permit starting such games without also starting any at server startup,
+# use a value less than 0.
+#
+# If this property's value != 0, a game with 1 human player against bots, and
+# 1 or more observers, won't be ended if that sole human player quits. A bot
+# will replace the human, and the game will continue as a robots-only game.
+# Otherwise any robots-only game will be ended even if it has observers.
+#
+# To adjust the robot-only game speed and server load, use
+# jsettlers.bots.fast_pause_percent and jsettlers.bots.botgames.parallel .
+#
+# jsettlers.bots.botgames.total=0
+
+# When server is starting robot-only games (jsettlers.bots.botgames.total > 0),
+# start this many at once. Use 0 to start them all.
+# jsettlers.bots.botgames.parallel=2
+
+# Wait this many seconds at startup before starting robot-only games (default
+# 1.6 seconds), in order to give bot clients more time to connect first. The
+# server will print a reminder message:
+# "Waiting 30 seconds before starting robot-only games."
+# jsettlers.bots.botgames.wait_sec=30
+
+# Adjust the speed-up factor for bots' pause times between actions when game
+# is bots-only. Default is 25, for 25% of normal pauses (4x speed). Use 1 for
+# a shorter delay (1% of normal pauses).
+# jsettlers.bots.fast_pause_percent=25
+
+# If true, when server has started robot-only games (jsettlers.bots.botgames.total > 0)
+# and those have finished, shut down the server if no other games are active.
+# jsettlers.bots.botgames.shutdown=N
+
+# Specify the robot connect cookie string. By default a new random string is
+# generated each time the server runs. Bots can't connect without giving the
+# cookie string to the server; without that cookie they are treated as human
+# players and won't be invited to join games. This debug property is useful
+# when developing or using a robot which isn't run within the server JVM.
+# If specified, this string must not contain any '|' ',' or newline characters.
+# jsettlers.bots.cookie=???   ## no default, randomly generated if not specified
+
+# Flag to print the value of jsettlers.bots.cookie to stderr during server
+# startup. If set, the cookie output will appear in this format:
+#   Robot cookie: 03883269284ee140cb907ea203846333
+# jsettlers.bots.showcookie=N
+
+# Percent of bot players which should be third-party (0 to 100) if available
+# when starting a game. No default; if not set, the server randomly chooses
+# any connected bots without checking their type.
+# If not enough third-party bots are connected to the server when starting a
+# game, the built-in bots will be used instead so that the game can begin.
+# If also using jsettlers.bots.botgames.total, remember those games will be
+# started as soon as the server is ready, so the third-party bots may not
+# yet be connected.
+# jsettlers.bots.percent3p=50
+
+# Robot turn timeout (seconds) for third-party robots, which may have more
+# complex logic than the built-in bots. The third-party bots will have this
+# many seconds to make a move before the server ends their turn.
+# Default is 8 seconds, the same limit as the built-in bots.
+# jsettlers.bots.timeout.turn=8
+
+# -- End of list of recognized available properties --
+
+# This sample file is documentation about the available properties.
+# Any jsserver.properties file you create belongs to you.
+# Attribution and copyright info for this sample file:
+#
+# This file is part of the JSettlers project.
+#
+# This file Copyright (C) 2016-2019 Jeremy D Monin (jeremy@nand.net)
+#
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see http://www.gnu.org/licenses/ .
