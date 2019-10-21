@@ -205,8 +205,10 @@ class JSettlersServer:
 		        length_of_message = int.from_bytes(conn.recv(2), byteorder='big')
 		        msg = conn.recv(length_of_message).decode("UTF-8")
 		        print(msg)
-		        self.handle_msg(msg)
-		    except:
+		        action = self.handle_msg(msg)
+		        conn.send(str(action).encode(encoding='UTF-8'))
+		        print("Sent: ", action)
+		    except socket.timeout:
 		        print("Timeout or error occured. Exiting ... ")
 		        break
 
@@ -222,7 +224,6 @@ class JSettlersServer:
 	def handle_msg(self, msg):
 		msg_args = msg.split(" | ")
 		print(msg_args)
-		'''
 		reward = msg_args[1]
 		if msg_args[0] == "trade": #We're still playing a game; update our agent based on the rewards returned and take an action
 			next_state = map(int, msg_args[2].split(","))
@@ -257,11 +258,10 @@ class JSettlersServer:
 		        epsilon = max(MIN_EPSILON, epsilon)
 
 		    return None
-		'''
 
 
 
 if __name__ == "__main__":
 	dqnagent = DQNAgent()
-	server = JSettlersServer("localhost", 2004, dqnagent, timeout=120)
+	server = JSettlersServer("localhost", 2004, dqnagent, timeout=20)
 	server.run()

@@ -126,17 +126,40 @@ public class Sample3PBrain extends SOCRobotBrain
         String answer = "0";
 
         try{
+            String giveData = "";
+            SOCResourceSet give = offer.getGiveSet();
+            giveData += Integer.toString(give.getAmount(SOCResourceConstants.CLAY));
+            giveData += ",";
+            giveData += Integer.toString(give.getAmount(SOCResourceConstants.WOOD));
+            giveData += ",";
+            giveData += Integer.toString(give.getAmount(SOCResourceConstants.SHEEP));
+            giveData += ",";
+            giveData += Integer.toString(give.getAmount(SOCResourceConstants.ORE));
+            giveData += ",";
+            giveData += Integer.toString(give.getAmount(SOCResourceConstants.WHEAT));
+
+            String getData = "";
+            SOCResourceSet get = offer.getGetSet();
+            getData += Integer.toString(get.getAmount(SOCResourceConstants.CLAY));
+            getData += ",";
+            getData += Integer.toString(get.getAmount(SOCResourceConstants.WOOD));
+            getData += ",";
+            getData += Integer.toString(get.getAmount(SOCResourceConstants.SHEEP));
+            getData += ",";
+            getData += Integer.toString(get.getAmount(SOCResourceConstants.ORE));
+            getData += ",";
+            getData += Integer.toString(get.getAmount(SOCResourceConstants.WHEAT));
+
             servercon = new Socket("localhost", 2004);
             servercon.setSoTimeout(300000);
             serverin = new DataInputStream(servercon.getInputStream());
             serverout = new DataOutputStream(servercon.getOutputStream());
-            serverout.writeUTF("trade|10|10,230,12,13,13,103,013,1023,1230");
-            /*
-            while(serverin.available()>0) {
-                 answer = serverin.readUTF();
-                 System.out.println(answer);
-              }
-            */
+            String msg = "trade|10|" + getData + "|" + giveData;
+            serverout.writeUTF(msg);
+            while ((answer = serverin.readLine()) != null) {
+                 System.err.println(answer);
+            }
+ 
             serverout.flush();
             serverout.close(); 
             serverin.close();   
