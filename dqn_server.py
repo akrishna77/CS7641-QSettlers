@@ -206,7 +206,7 @@ class JSettlersServer:
 		        msg = conn.recv(length_of_message).decode("UTF-8")
 		        print(msg)
 		        action = self.handle_msg(msg)
-		        conn.send(str(action).encode(encoding='UTF-8'))
+		        #conn.send(str(action).encode(encoding='UTF-8'))
 		        print("Sent: ", action)
 		    except socket.timeout:
 		        print("Timeout or error occured. Exiting ... ")
@@ -222,46 +222,46 @@ class JSettlersServer:
 
 
 	def handle_msg(self, msg):
-		msg_args = msg.split(" | ")
+		msg_args = msg.split("|")
 		print(msg_args)
-		reward = msg_args[1]
-		if msg_args[0] == "trade": #We're still playing a game; update our agent based on the rewards returned and take an action
-			next_state = map(int, msg_args[2].split(","))
-			if self.state:	# If we have a previous state, run a train step on the agent for the last action taken
-				self.agent.update_replay_memory((self.state, self.last_action, reward, next_state))
-				self.agent.train(False)
-				# Update actions so that on the next step, we'll train on these actions
-				self.state = next_state
-				action = self.get_action(self.state)
-				self.last_action = action
-				return action
-		elif msg_args[0] == "end": #The game has ended, update our agent based on the rewards, update our logs, and reset for the next game
-			self.agent.update_replay_memory((self.state, self.last_action, reward, next_state))
-			self.agent.train(True)
-			# Update actions so that on the next step, we'll train on these actions
-			self.state = None
-			self.last_action = None
-			    # Append episode reward to a list and log stats (every given number of episodes)
-		    self.ep_rewards.append(reward)
-		    if not self.curr_episode % AGGREGATE_STATS_EVERY or episode == 1:
-		        average_reward = sum(self.ep_rewards[-AGGREGATE_STATS_EVERY:])/len(self.ep_rewards[-AGGREGATE_STATS_EVERY:])
-		        min_reward = min(self.ep_rewards[-AGGREGATE_STATS_EVERY:])
-		        max_reward = max(self.ep_rewards[-AGGREGATE_STATS_EVERY:])
-		        self.agent.tensorboard.update_stats(reward_avg=average_reward, reward_min=min_reward, reward_max=max_reward, epsilon=epsilon)
+		# reward = msg_args[1]
+		# if msg_args[0] == "trade": #We're still playing a game; update our agent based on the rewards returned and take an action
+		# 	next_state = map(int, msg_args[2].split(","))
+		# 	if self.state:	# If we have a previous state, run a train step on the agent for the last action taken
+		# 		self.agent.update_replay_memory((self.state, self.last_action, reward, next_state))
+		# 		self.agent.train(False)
+		# 		# Update actions so that on the next step, we'll train on these actions
+		# 		self.state = next_state
+		# 		action = self.get_action(self.state)
+		# 		self.last_action = action
+		# 		return action
+		# elif msg_args[0] == "end": #The game has ended, update our agent based on the rewards, update our logs, and reset for the next game
+		# 	self.agent.update_replay_memory((self.state, self.last_action, reward, next_state))
+		# 	self.agent.train(True)
+		# 	# Update actions so that on the next step, we'll train on these actions
+		# 	self.state = None
+		# 	self.last_action = None
+		# 	    # Append episode reward to a list and log stats (every given number of episodes)
+		#     self.ep_rewards.append(reward)
+		#     if not self.curr_episode % AGGREGATE_STATS_EVERY or episode == 1:
+		#         average_reward = sum(self.ep_rewards[-AGGREGATE_STATS_EVERY:])/len(self.ep_rewards[-AGGREGATE_STATS_EVERY:])
+		#         min_reward = min(self.ep_rewards[-AGGREGATE_STATS_EVERY:])
+		#         max_reward = max(self.ep_rewards[-AGGREGATE_STATS_EVERY:])
+		#         self.agent.tensorboard.update_stats(reward_avg=average_reward, reward_min=min_reward, reward_max=max_reward, epsilon=epsilon)
 
-		        # Save model
-		        self.agent.model.save(f'models/{MODEL_NAME}__{max_reward:_>7.2f}max_{average_reward:_>7.2f}avg_{min_reward:_>7.2f}min__{int(time.time())}.model')
+		#         # Save model
+		#         self.agent.model.save(f'models/{MODEL_NAME}__{max_reward:_>7.2f}max_{average_reward:_>7.2f}avg_{min_reward:_>7.2f}min__{int(time.time())}.model')
 
-				# Decay epsilon
-		    if epsilon > MIN_EPSILON:
-		        epsilon *= EPSILON_DECAY
-		        epsilon = max(MIN_EPSILON, epsilon)
+		# 		# Decay epsilon
+		#     if epsilon > MIN_EPSILON:
+		#         epsilon *= EPSILON_DECAY
+		#         epsilon = max(MIN_EPSILON, epsilon)
 
-		    return None
+		#     return None
 
 
 
 if __name__ == "__main__":
 	dqnagent = DQNAgent()
-	server = JSettlersServer("localhost", 2004, dqnagent, timeout=20)
+	server = JSettlersServer("localhost", 2004, dqnagent, timeout=180)
 	server.run()

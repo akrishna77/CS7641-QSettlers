@@ -20,12 +20,27 @@
 package soc.robot.sample3p;
 
 import soc.game.SOCGame;
-import soc.message.SOCMessage;
 import soc.robot.SOCRobotBrain;
 import soc.robot.SOCRobotClient;
 import soc.util.CappedQueue;
 import soc.util.SOCFeatureSet;
 import soc.util.SOCRobotParameters;
+
+import soc.baseclient.SOCDisplaylessPlayerClient;
+
+import soc.disableDebug.D;
+
+import soc.game.SOCGameOption;
+import soc.game.SOCPlayer;
+
+import soc.message.*;
+
+import soc.server.genericServer.StringServerSocket;
+
+import soc.util.CappedQueue;
+import soc.util.CutoffExceededException;
+import soc.util.DebugRecorder;
+import soc.util.Version;
 
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
@@ -96,13 +111,13 @@ public class Sample3PClient extends SOCRobotClient
             servercon.setSoTimeout(300000);
             serverin = new DataInputStream(servercon.getInputStream());
             serverout = new DataOutputStream(servercon.getOutputStream());
-            serverout.writeUTF("This worked!!!!");
+            serverout.writeUTF("Initial Client Connection OK.");
             serverout.flush();
             serverout.close();  
             servercon.close();
             }
          catch(Exception e){
-            System.err.println("Whoops!");
+            System.err.println("Initial Client Connection Failed.");
          }
         rbclass = RBCLASSNAME_SAMPLE;
     }
@@ -127,6 +142,72 @@ public class Sample3PClient extends SOCRobotClient
 
         return feats;
     }
+
+    @Override
+    protected void handleDELETEGAME(SOCDeleteGame mes)
+    {
+        try{
+            SOCGame ga = games.get(mes.getGame());
+            int my_place = 1;
+            if (ga != null)
+            {
+                if (ga.getGameState() == SOCGame.OVER)
+                {
+                    int my_score = ga.getPlayer(nickname).getTotalVP();
+                    for (int i = 0; i < 4; i++){
+                        if (ga.getPlayer(i).getPublicVP() > my_score){
+                            my_place += 1;
+                        }
+                    }
+
+                }
+            }
+            String resultData = Integer.toString(my_place);
+            servercon = new Socket("localhost", 2004);
+            servercon.setSoTimeout(300000);
+            serverin = new DataInputStream(servercon.getInputStream());
+            serverout = new DataOutputStream(servercon.getOutputStream());
+            serverout.writeUTF("end|" + resultData);
+            serverout.flush();
+            serverout.close();  
+            servercon.close();
+            }
+         catch(Exception e){
+            System.err.println("DeleteGame Handle Failed");
+            System.err.println(e);
+
+         }
+
+
+        //Run code from super()
+        SOCRobotBrain brain = robotBrains.get(mes.getGame());
+
+        if (brain != null)
+        {
+            SOCGame ga = games.get(mes.getGame());
+
+            if (ga != null)
+            {
+                if (ga.getGameState() == SOCGame.OVER)
+                {
+                    gamesFinished++;
+
+                    if (ga.getPlayer(nickname).getTotalVP() >= ga.vp_winner)
+                    {
+                        gamesWon++;
+                        // TODO: should check actual winning player number (getCurrentPlayerNumber?)
+                    }
+                }
+
+                brain.kill();
+                robotBrains.remove(mes.getGame());
+                brainQs.remove(mes.getGame());
+                games.remove(mes.getGame());
+            }
+        }
+    }
+
+
 
     /**
      * Factory to provide our client's {@link Sample3PBrain} to games instead of the standard brain.

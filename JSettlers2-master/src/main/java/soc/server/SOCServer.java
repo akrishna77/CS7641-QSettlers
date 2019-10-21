@@ -2784,7 +2784,7 @@ public class SOCServer extends Server
 
              // Make a few 3p clients
 
-            for (int i = 0; i < numSmart; ++i)
+            for (int i = 0; i < 1; ++i)
             {
                 String rname = "3p robot " + (i+1+numFast + numSmart);
                 SOCLocal3PClient.createAndStartRobotClientThread(rname, strSocketName, port, robotCookie);

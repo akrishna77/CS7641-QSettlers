@@ -156,9 +156,11 @@ public class Sample3PBrain extends SOCRobotBrain
             serverout = new DataOutputStream(servercon.getOutputStream());
             String msg = "trade|10|" + getData + "|" + giveData;
             serverout.writeUTF(msg);
+            /*
             while ((answer = serverin.readLine()) != null) {
                  System.err.println(answer);
             }
+            */
  
             serverout.flush();
             serverout.close(); 
