@@ -123,9 +123,41 @@ public class Sample3PBrain extends SOCRobotBrain
             return SOCRobotNegotiator.IGNORE_OFFER;
         }
 
-        String answer = "0";
+        String decision = "0";
 
         try{
+
+            //Get & format my victory points
+            String my_vp = Integer.toString(game.getPlayer(getOurPlayerNumber()).getPublicVP());
+            String opp_vp = Integer.toString(game.getPlayer(offer.getFrom()).getPublicVP());
+
+            //Get & format current resource set for opponent
+            SOCResourceSet opponent_resources = game.getPlayer(offer.getFrom()).getResources();
+            String oppData = "";
+            oppData += Integer.toString(opponent_resources.getAmount(SOCResourceConstants.CLAY));
+            oppData += ",";
+            oppData += Integer.toString(opponent_resources.getAmount(SOCResourceConstants.WOOD));
+            oppData += ",";
+            oppData += Integer.toString(opponent_resources.getAmount(SOCResourceConstants.SHEEP));
+            oppData += ",";
+            oppData += Integer.toString(opponent_resources.getAmount(SOCResourceConstants.ORE));
+            oppData += ",";
+            oppData += Integer.toString(opponent_resources.getAmount(SOCResourceConstants.WHEAT));
+
+            //Get & format current resource set for our agent
+            SOCResourceSet my_resources = game.getPlayer(getOurPlayerNumber()).getResources();
+            String myData = "";
+            myData += Integer.toString(my_resources.getAmount(SOCResourceConstants.CLAY));
+            myData += ",";
+            myData += Integer.toString(my_resources.getAmount(SOCResourceConstants.WOOD));
+            myData += ",";
+            myData += Integer.toString(my_resources.getAmount(SOCResourceConstants.SHEEP));
+            myData += ",";
+            myData += Integer.toString(my_resources.getAmount(SOCResourceConstants.ORE));
+            myData += ",";
+            myData += Integer.toString(my_resources.getAmount(SOCResourceConstants.WHEAT));
+
+            //Get & format which resources we'll give away
             String giveData = "";
             SOCResourceSet give = offer.getGiveSet();
             giveData += Integer.toString(give.getAmount(SOCResourceConstants.CLAY));
@@ -138,6 +170,7 @@ public class Sample3PBrain extends SOCRobotBrain
             giveData += ",";
             giveData += Integer.toString(give.getAmount(SOCResourceConstants.WHEAT));
 
+            //Get & format which resources we'll get in return
             String getData = "";
             SOCResourceSet get = offer.getGetSet();
             getData += Integer.toString(get.getAmount(SOCResourceConstants.CLAY));
@@ -150,27 +183,38 @@ public class Sample3PBrain extends SOCRobotBrain
             getData += ",";
             getData += Integer.toString(get.getAmount(SOCResourceConstants.WHEAT));
 
+            //Pass game state info to DQN server
             servercon = new Socket("localhost", 2004);
             servercon.setSoTimeout(300000);
             serverin = new DataInputStream(servercon.getInputStream());
             serverout = new DataOutputStream(servercon.getOutputStream());
-            String msg = "trade|10|" + getData + "|" + giveData;
+            String msg = "trade|" + my_vp + "|" + opp_vp + "|" + myData + "|" + oppData + "|" + getData + "|" + giveData;
             serverout.writeUTF(msg);
-            /*
-            while ((answer = serverin.readLine()) != null) {
-                 System.err.println(answer);
-            }
-            */
- 
+
+            //Receive decision from DQN server
+            decision = serverin.readLine();
+
             serverout.flush();
             serverout.close(); 
             serverin.close();   
             servercon.close();  
-            }
+        }
          catch(Exception e){
             System.err.println("Whoops!");
          }
 
+        if (decision.contains("0")){
+            System.err.println(decision);
+            System.err.println("Rejecting offer ... ");
+           return SOCRobotNegotiator.REJECT_OFFER;
+        }
+        else{
+            System.err.println(decision);
+            System.err.println("Accepting offer ... ");
+            return SOCRobotNegotiator.ACCEPT_OFFER;
+        }
+
+        /*
         final SOCResourceSet res = offer.getGiveSet();
         if (! (res.contains(SOCResourceConstants.CLAY) || res.contains(SOCResourceConstants.SHEEP)))
         {
@@ -178,5 +222,6 @@ public class Sample3PBrain extends SOCRobotBrain
         }
 
         return super.considerOffer(offer);
+        */
     }
 }
