@@ -19,7 +19,7 @@ from tensorflow.summary import FileWriter
 import tensorflow
 
 
-OBSERVATION_SPACE_SIZE = (1,28)
+OBSERVATION_SPACE_SIZE = (1,22)
 ACTION_SPACE_SIZE = 2
 DISCOUNT = 0.99
 REPLAY_MEMORY_SIZE = 500  # How many last steps to keep for model training
@@ -153,6 +153,8 @@ class DQNAgent:
             
             X.append(current_state)
             y.append(current_qs)
+
+        X = np.expand_dims(X, axis=2)
             
         self.model.fit(np.array(X), np.array(y), batch_size = MINIBATCH_SIZE,
                       verbose = 0, shuffle=False, callbacks=[self.tensorboard] if terminal_state else None)
@@ -210,6 +212,8 @@ class JSettlersServer:
                 break
 
     def get_action(self, state):
+        state = np.array(state)
+        state = state.reshape((1, 22))
         if np.random.random() > self.agent.epsilon:
             action = np.argmax(self.agent.get_qs(state))
         else:
@@ -241,40 +245,45 @@ class JSettlersServer:
             self.last_action = action
             return action
         elif msg_args[0] == "end": #The game has ended, update our agent based on the rewards, update our logs, and reset for the next game
-            final_placing = int(msg_args[1])
-            print("Game end. Final Placing: " + str(final_placing))
-            if (final_placing == 1):
-                reward = 10
-            elif (final_placing == 2):
-                reward = 7
-            if (final_placing == 3):
-                reward = 4
-            elif (final_placing == 4):
-                reward = 0
+            is_over = str(msg_args[1])
+            print("Result: ", is_over)
+            if "true" in is_over:
+                final_placing = int(msg_args[2])
+                print("Game end. Final Placing: " + str(final_placing))
+                if (final_placing == 1):
+                    reward = 10
+                elif (final_placing == 2):
+                    reward = 7
+                if (final_placing == 3):
+                    reward = 4
+                elif (final_placing == 4):
+                    reward = 0
 
-            self.write_result(final_placing)
+                self.write_result(final_placing)
 
-            feat_vector = [0 for x in self.prev_vector]
-            self.agent.update_replay_memory((self.prev_vector, self.last_action, reward, feat_vector))
-            self.agent.train(True)
-            # Update actions so that on the next step, we'll train on these actions
-            self.prev_vector = None
-            self.last_action = None
-                # Append episode reward to a list and log stats (every given number of episodes)
-            self.ep_rewards.append(reward)
-            if not self.curr_episode % AGGREGATE_STATS_EVERY or self.curr_episode == 1:
-                average_reward = sum(self.ep_rewards[-AGGREGATE_STATS_EVERY:])/len(self.ep_rewards[-AGGREGATE_STATS_EVERY:])
-                min_reward = min(self.ep_rewards[-AGGREGATE_STATS_EVERY:])
-                max_reward = max(self.ep_rewards[-AGGREGATE_STATS_EVERY:])
-                self.agent.tensorboard.update_stats(reward_avg=average_reward, reward_min=min_reward, reward_max=max_reward, epsilon=self.agent.epsilon)
-                self.curr_episode += 1
-                # Save model
-                self.agent.model.save(f'models/{MODEL_NAME}__{max_reward:_>7.2f}max_{average_reward:_>7.2f}avg_{min_reward:_>7.2f}min__{int(time.time())}.model')
+                feat_vector = [0 for x in self.prev_vector]
+                self.agent.update_replay_memory((self.prev_vector, self.last_action, reward, feat_vector))
+                self.agent.train(True)
+                # Update actions so that on the next step, we'll train on these actions
+                self.prev_vector = None
+                self.last_action = None
+                    # Append episode reward to a list and log stats (every given number of episodes)
+                self.ep_rewards.append(reward)
+                if not self.curr_episode % AGGREGATE_STATS_EVERY or self.curr_episode == 1:
+                    average_reward = sum(self.ep_rewards[-AGGREGATE_STATS_EVERY:])/len(self.ep_rewards[-AGGREGATE_STATS_EVERY:])
+                    min_reward = min(self.ep_rewards[-AGGREGATE_STATS_EVERY:])
+                    max_reward = max(self.ep_rewards[-AGGREGATE_STATS_EVERY:])
+                    self.agent.tensorboard.update_stats(reward_avg=average_reward, reward_min=min_reward, reward_max=max_reward, epsilon=self.agent.epsilon)
+                    self.curr_episode += 1
+                    # Save model
+                    self.agent.model.save(f'models/{MODEL_NAME}__{max_reward:_>7.2f}max_{average_reward:_>7.2f}avg_{min_reward:_>7.2f}min__{int(time.time())}.model')
 
-                # Decay epsilon
-            if self.agent.epsilon > self.agent.MIN_EPSILON:
-                self.agent.epsilon *= self.agent.EPSILON_DECAY
-                self.agent.epsilon = max(self.agent.MIN_EPSILON, self.agent.epsilon)
+                    # Decay epsilon
+                if self.agent.epsilon > self.agent.MIN_EPSILON:
+                    self.agent.epsilon *= self.agent.EPSILON_DECAY
+                    self.agent.epsilon = max(self.agent.MIN_EPSILON, self.agent.epsilon)
+            else:
+                print("Unfinished game; ignoring result ... ")
 
             return None
 

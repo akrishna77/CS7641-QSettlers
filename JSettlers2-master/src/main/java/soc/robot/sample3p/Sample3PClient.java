@@ -44,6 +44,7 @@ import soc.util.Version;
 
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
+import java.lang.*;
 
 import java.net.Socket;
 
@@ -147,6 +148,7 @@ public class Sample3PClient extends SOCRobotClient
     protected void handleDELETEGAME(SOCDeleteGame mes)
     {
         try{
+            boolean isOver = false;
             SOCGame ga = games.get(mes.getGame());
             int my_place = 1;
             if (ga != null)
@@ -158,6 +160,9 @@ public class Sample3PClient extends SOCRobotClient
                         if (ga.getPlayer(i).getPublicVP() > my_score){
                             my_place += 1;
                         }
+                        if (ga.getPlayer(i).getPublicVP() == 10){
+                            isOver = true;
+                        }
                     }
 
                 }
@@ -167,7 +172,7 @@ public class Sample3PClient extends SOCRobotClient
             servercon.setSoTimeout(300000);
             serverin = new DataInputStream(servercon.getInputStream());
             serverout = new DataOutputStream(servercon.getOutputStream());
-            serverout.writeUTF("end|" + resultData);
+            serverout.writeUTF("end|" + Boolean.toString(isOver) + "|" + resultData);
             serverout.flush();
             serverout.close();  
             servercon.close();
