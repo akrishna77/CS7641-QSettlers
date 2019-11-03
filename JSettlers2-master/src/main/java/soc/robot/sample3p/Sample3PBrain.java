@@ -114,6 +114,61 @@ public class Sample3PBrain extends SOCRobotBrain
      *<P>
      * {@inheritDoc}
      */
+
+    protected String extractOfferGiveData(SOCTradeOffer offer){
+        //Get & format which resources we'll give away
+        String giveData = "";
+        SOCResourceSet give = offer.getGiveSet();
+        giveData += Integer.toString(give.getAmount(SOCResourceConstants.CLAY));
+        giveData += ",";
+        giveData += Integer.toString(give.getAmount(SOCResourceConstants.WOOD));
+        giveData += ",";
+        giveData += Integer.toString(give.getAmount(SOCResourceConstants.SHEEP));
+        giveData += ",";
+        giveData += Integer.toString(give.getAmount(SOCResourceConstants.ORE));
+        giveData += ",";
+        giveData += Integer.toString(give.getAmount(SOCResourceConstants.WHEAT));
+
+        return giveData;
+    }
+
+    protected String extractOfferGetData(SOCTradeOffer offer){
+        //Get & format which resources we'll get in return
+        String getData = "";
+        SOCResourceSet get = offer.getGetSet();
+        getData += Integer.toString(get.getAmount(SOCResourceConstants.CLAY));
+        getData += ",";
+        getData += Integer.toString(get.getAmount(SOCResourceConstants.WOOD));
+        getData += ",";
+        getData += Integer.toString(get.getAmount(SOCResourceConstants.SHEEP));
+        getData += ",";
+        getData += Integer.toString(get.getAmount(SOCResourceConstants.ORE));
+        getData += ",";
+        getData += Integer.toString(get.getAmount(SOCResourceConstants.WHEAT));
+        return getData;
+    }
+
+    protected int getPlayerVP(int player){
+        return game.getPlayer(player).getPublicVP();
+    }
+
+    protected String formatPlayerResources(int player){
+        SOCResourceSet resources = game.getPlayer(player).getResources();
+        String resData = "";
+        resData += Integer.toString(resources.getAmount(SOCResourceConstants.CLAY));
+        resData += ",";
+        resData += Integer.toString(resources.getAmount(SOCResourceConstants.WOOD));
+        resData += ",";
+        resData += Integer.toString(resources.getAmount(SOCResourceConstants.SHEEP));
+        resData += ",";
+        resData += Integer.toString(resources.getAmount(SOCResourceConstants.ORE));
+        resData += ",";
+        resData += Integer.toString(resources.getAmount(SOCResourceConstants.WHEAT));
+
+        return resData;
+
+    }
+
     @Override
     protected int considerOffer(SOCTradeOffer offer)
     {
@@ -128,67 +183,26 @@ public class Sample3PBrain extends SOCRobotBrain
         try{
 
             //Get & format my victory points
-            String my_vp = Integer.toString(game.getPlayer(getOurPlayerNumber()).getPublicVP());
-            String opp_vp = Integer.toString(game.getPlayer(offer.getFrom()).getPublicVP());
+            String my_vp = Integer.toString(getPlayerVP(getOurPlayerNumber()));
+            String opp_vp = Integer.toString(getPlayerVP(offer.getFrom()));
 
             //Get & format current resource set for opponent
-            SOCResourceSet opponent_resources = game.getPlayer(offer.getFrom()).getResources();
-            String oppData = "";
-            oppData += Integer.toString(opponent_resources.getAmount(SOCResourceConstants.CLAY));
-            oppData += ",";
-            oppData += Integer.toString(opponent_resources.getAmount(SOCResourceConstants.WOOD));
-            oppData += ",";
-            oppData += Integer.toString(opponent_resources.getAmount(SOCResourceConstants.SHEEP));
-            oppData += ",";
-            oppData += Integer.toString(opponent_resources.getAmount(SOCResourceConstants.ORE));
-            oppData += ",";
-            oppData += Integer.toString(opponent_resources.getAmount(SOCResourceConstants.WHEAT));
+            String opponent_resources = formatPlayerResources(offer.getFrom());
 
             //Get & format current resource set for our agent
-            SOCResourceSet my_resources = game.getPlayer(getOurPlayerNumber()).getResources();
-            String myData = "";
-            myData += Integer.toString(my_resources.getAmount(SOCResourceConstants.CLAY));
-            myData += ",";
-            myData += Integer.toString(my_resources.getAmount(SOCResourceConstants.WOOD));
-            myData += ",";
-            myData += Integer.toString(my_resources.getAmount(SOCResourceConstants.SHEEP));
-            myData += ",";
-            myData += Integer.toString(my_resources.getAmount(SOCResourceConstants.ORE));
-            myData += ",";
-            myData += Integer.toString(my_resources.getAmount(SOCResourceConstants.WHEAT));
+            String my_resources = formatPlayerResources(getOurPlayerNumber());
 
-            //Get & format which resources we'll give away
-            String giveData = "";
-            SOCResourceSet give = offer.getGiveSet();
-            giveData += Integer.toString(give.getAmount(SOCResourceConstants.CLAY));
-            giveData += ",";
-            giveData += Integer.toString(give.getAmount(SOCResourceConstants.WOOD));
-            giveData += ",";
-            giveData += Integer.toString(give.getAmount(SOCResourceConstants.SHEEP));
-            giveData += ",";
-            giveData += Integer.toString(give.getAmount(SOCResourceConstants.ORE));
-            giveData += ",";
-            giveData += Integer.toString(give.getAmount(SOCResourceConstants.WHEAT));
-
-            //Get & format which resources we'll get in return
-            String getData = "";
-            SOCResourceSet get = offer.getGetSet();
-            getData += Integer.toString(get.getAmount(SOCResourceConstants.CLAY));
-            getData += ",";
-            getData += Integer.toString(get.getAmount(SOCResourceConstants.WOOD));
-            getData += ",";
-            getData += Integer.toString(get.getAmount(SOCResourceConstants.SHEEP));
-            getData += ",";
-            getData += Integer.toString(get.getAmount(SOCResourceConstants.ORE));
-            getData += ",";
-            getData += Integer.toString(get.getAmount(SOCResourceConstants.WHEAT));
+            //Get & format trade contents
+            String getData = extractOfferGetData(offer);
+            String giveData = extractOfferGiveData(offer);
+            
 
             //Pass game state info to DQN server
             servercon = new Socket("localhost", 2004);
             servercon.setSoTimeout(300000);
             serverin = new DataInputStream(servercon.getInputStream());
             serverout = new DataOutputStream(servercon.getOutputStream());
-            String msg = "trade|" + my_vp + "|" + opp_vp + "|" + myData + "|" + oppData + "|" + getData + "|" + giveData;
+            String msg = "trade|" + my_vp + "|" + opp_vp + "|" + my_resources + "|" + opponent_resources + "|" + getData + "|" + giveData;
             serverout.writeUTF(msg);
 
             //Receive decision from DQN server
@@ -200,7 +214,7 @@ public class Sample3PBrain extends SOCRobotBrain
             servercon.close();  
         }
          catch(Exception e){
-            System.err.println("Whoops!");
+            System.err.println("Whoops! Connection with server lost ... ");
          }
 
         if (decision.contains("0")){
