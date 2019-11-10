@@ -28,15 +28,9 @@ MINIBATCH_SIZE = 8  # How many steps (samples) to use for training
 UPDATE_TARGET_EVERY = 4  # Terminal states (end of episodes)
 MODEL_NAME = '2x256'
 MIN_REWARD = -200  # For model save
-MEMORY_FRACTION = 0.20
-
-# Environment settings
-EPISODES = 100
 
 #  Stats settings
 AGGREGATE_STATS_EVERY = 50  # episodes
-SHOW_PREVIEW = False
-
 
 # Own Tensorboard class, used to ignore lots of the operations done per call to fit()
 class ModifiedTensorBoard(TensorBoard):
