@@ -234,7 +234,7 @@ class JSettlersServer:
             feat_vector = np.array([my_vp] + [opp_vp] + my_res + opp_res + get + give) 
 
             if self.prev_vector is not None:    # If we have a previous state, run a train step on the agent for the last action taken
-                self.agent.update_replay_memory((self.prev_vector, self.last_action, 0, feat_vector))
+                self.agent.update_replay_memory((self.prev_vector, self.last_action, 0, feat_vector, False))
                 self.agent.train(False)
             else:
                 print("First step. Ignoring training ... ")
@@ -266,7 +266,7 @@ class JSettlersServer:
                     return None
 
                 feat_vector = [0 for x in self.prev_vector]
-                self.agent.update_replay_memory((self.prev_vector, self.last_action, reward, feat_vector))
+                self.agent.update_replay_memory((self.prev_vector, self.last_action, reward, feat_vector, True))
                 self.agent.train(True)
                 # Update actions so that on the next step, we'll train on these actions
                 self.prev_vector = None
