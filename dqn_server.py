@@ -27,10 +27,10 @@ MIN_REPLAY_MEMORY_SIZE = 1_000  # Minimum number of steps in a memory to start t
 MINIBATCH_SIZE = 8  # How many steps (samples) to use for training
 UPDATE_TARGET_EVERY = 4  # Terminal states (end of episodes)
 MODEL_NAME = '2x256'
-MIN_REWARD = -200  # For model save
+MIN_REWARD = 4  # For model save
 
 #  Stats settings
-AGGREGATE_STATS_EVERY = 50  # episodes
+AGGREGATE_STATS_EVERY = 2  # episodes
 
 # Own Tensorboard class, used to ignore lots of the operations done per call to fit()
 class ModifiedTensorBoard(TensorBoard):
@@ -174,7 +174,7 @@ class JSettlersServer:
         self.last_action = None
 
         #Used for logging models and stats
-        self.ep_rewards = [-200]
+        self.ep_rewards = []
         self.curr_episode = 1
         self.standing_log = "agent_standings.csv"
         self.standing_results = [0,0,0,0]
@@ -270,7 +270,8 @@ class JSettlersServer:
                     self.agent.tensorboard.update_stats(reward_avg=average_reward, reward_min=min_reward, reward_max=max_reward, epsilon=self.agent.epsilon)
                     self.curr_episode += 1
                     # Save model
-                    self.agent.model.save(f'models/{MODEL_NAME}__{max_reward:_>7.2f}max_{average_reward:_>7.2f}avg_{min_reward:_>7.2f}min__{int(time.time())}.model')
+                    if(min_reward >= MIN_REWARD):
+                        self.agent.model.save(f'models/{MODEL_NAME}__{max_reward:_>7.2f}max_{average_reward:_>7.2f}avg_{min_reward:_>7.2f}min__{int(time.time())}.model')
 
                     # Decay epsilon
                 if self.agent.epsilon > self.agent.MIN_EPSILON:
