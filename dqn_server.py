@@ -22,12 +22,14 @@ import tensorflow
 OBSERVATION_SPACE_SIZE = (1,22)
 ACTION_SPACE_SIZE = 2
 DISCOUNT = 0.99
+
 REPLAY_MEMORY_SIZE = 100  # How many last steps to keep for model training
-MIN_REPLAY_MEMORY_SIZE = 1_000  # Minimum number of steps in a memory to start training
-MINIBATCH_SIZE = 8  # How many steps (samples) to use for training
+MIN_REPLAY_MEMORY_SIZE = 1  # Minimum number of steps in a memory to start training
+MINIBATCH_SIZE = 1  # How many steps (samples) to use for training
+
 UPDATE_TARGET_EVERY = 4  # Terminal states (end of episodes)
 MODEL_NAME = '2x256'
-MIN_REWARD = 4  # For model save
+MIN_REWARD = 7  # For model save
 
 #  Stats settings
 AGGREGATE_STATS_EVERY = 2  # episodes
@@ -69,7 +71,8 @@ class DQNAgent:
     def __init__(self):
         #Main Model - used to actually fit
         self.model = self.create_model()
-        
+        self.history = None
+            
         #Target model - used to predict, updated every so episodes or epochs
         self.target_model = self.create_model()
         self.target_model.set_weights(self.model.get_weights())
@@ -119,16 +122,18 @@ class DQNAgent:
         #Grab a sample from replay_memory, use as batch to fit() target_model        
         #If replay_memory is too small, sampling from it will always return same sample and will result in overfitting
         if len(self.replay_memory) < MIN_REPLAY_MEMORY_SIZE:
+            print("Replay memory too small!")
             return
         
         minibatch = random.sample(self.replay_memory, MINIBATCH_SIZE)
         
         #Get Q Values
         current_states = np.array([transition[0] for transition in minibatch]) #Normalizing and sample states
+        current_states = np.expand_dims(current_states, axis=0)
         current_qs_list = self.model.predict(current_states)
         
         new_current_states = np.array([transition[3] for transition in minibatch])
-        
+        new_current_states = np.expand_dims(new_current_states, axis=0)
         future_qs_list = self.target_model.predict(new_current_states)
         
         X = []
@@ -142,16 +147,15 @@ class DQNAgent:
                 new_q = reward
                 
             current_qs = current_qs_list[index]
-            
             current_qs[action] = new_q
             
             X.append(current_state)
             y.append(current_qs)
 
-        X = np.expand_dims(X, axis=2)
+        X = np.expand_dims(X, axis=0)
             
-        self.model.fit(np.array(X), np.array(y), batch_size = MINIBATCH_SIZE,
-                      verbose = 0, shuffle=False, callbacks=[self.tensorboard] if terminal_state else None)
+        self.history = self.model.fit(np.array(X), np.array(y), batch_size = MINIBATCH_SIZE,
+                      verbose = 2, shuffle=False, callbacks=[self.tensorboard] if terminal_state else None)
         
         #Update count for updating target_model
         if terminal_state:
@@ -174,7 +178,7 @@ class JSettlersServer:
         self.last_action = None
 
         #Used for logging models and stats
-        self.ep_rewards = []
+        self.ep_rewards = [0]
         self.curr_episode = 1
         self.standing_log = "agent_standings.csv"
         self.standing_results = [0,0,0,0]
@@ -200,7 +204,7 @@ class JSettlersServer:
                 print("Considering Trade ... ")
                 action = self.handle_msg(msg)
                 conn.send((str(action) + '\n').encode(encoding='UTF-8'))
-                print("Result: " + str(action))
+                print("Result: " + str(action) + "\n")
             except socket.timeout:
                 print("Timeout or error occured. Exiting ... ")
                 break
@@ -232,7 +236,7 @@ class JSettlersServer:
             feat_vector = np.array([my_vp] + [opp_vp] + my_res + opp_res + get + give) 
 
             if self.prev_vector is not None:    # If we have a previous state, run a train step on the agent for the last action taken
-                self.agent.update_replay_memory((self.prev_vector, self.last_action, 0, feat_vector))
+                self.agent.update_replay_memory((self.prev_vector, self.last_action, 0, feat_vector, False))
                 self.agent.train(False)
             else:
                 print("First step. Ignoring training ... ")
@@ -247,7 +251,7 @@ class JSettlersServer:
             print("Result: ", is_over)
             if "true" in is_over:
                 final_placing = int(msg_args[2])
-                print("Game end. Final Placing: " + str(final_placing))
+                print("Game end. Final Placing: " + str(final_placing) + "\n\n")
                 if (final_placing == 1):
                     reward = 10
                 elif (final_placing == 2):
@@ -260,11 +264,11 @@ class JSettlersServer:
                 self.write_result(final_placing)
 
                 if self.prev_vector is None:
-                    print("Game with one move; ignoring result ... ")
+                    print("Game with one move; ignoring result ...\n\n")
                     return None
 
                 feat_vector = [0 for x in self.prev_vector]
-                self.agent.update_replay_memory((self.prev_vector, self.last_action, reward, feat_vector))
+                self.agent.update_replay_memory((self.prev_vector, self.last_action, reward, feat_vector, True))
                 self.agent.train(True)
                 # Update actions so that on the next step, we'll train on these actions
                 self.prev_vector = None
@@ -275,7 +279,9 @@ class JSettlersServer:
                     average_reward = sum(self.ep_rewards[-AGGREGATE_STATS_EVERY:])/len(self.ep_rewards[-AGGREGATE_STATS_EVERY:])
                     min_reward = min(self.ep_rewards[-AGGREGATE_STATS_EVERY:])
                     max_reward = max(self.ep_rewards[-AGGREGATE_STATS_EVERY:])
-                    self.agent.tensorboard.update_stats(reward_avg=average_reward, reward_min=min_reward, reward_max=max_reward, epsilon=self.agent.epsilon)
+                    loss = self.agent.history.history["loss"][0]
+                    accuracy = self.agent.history.history["acc"][0]
+                    self.agent.tensorboard.update_stats(loss=loss, accuracy=accuracy, reward_avg=average_reward, reward_min=min_reward, reward_max=max_reward, epsilon=self.agent.epsilon)
                     self.curr_episode += 1
                     # Save model
                     if(min_reward >= MIN_REWARD):
@@ -288,7 +294,7 @@ class JSettlersServer:
                     self.agent.epsilon *= self.agent.EPSILON_DECAY
                     self.agent.epsilon = max(self.agent.MIN_EPSILON, self.agent.epsilon)
             else:
-                print("Unfinished game; ignoring result ... ")
+                print("Unfinished game; ignoring result ...\n\n")
 
             return None
 
