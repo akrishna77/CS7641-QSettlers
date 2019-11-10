@@ -22,12 +22,14 @@ import tensorflow
 OBSERVATION_SPACE_SIZE = (1,22)
 ACTION_SPACE_SIZE = 2
 DISCOUNT = 0.99
+
 REPLAY_MEMORY_SIZE = 100  # How many last steps to keep for model training
-MIN_REPLAY_MEMORY_SIZE = 1_000  # Minimum number of steps in a memory to start training
-MINIBATCH_SIZE = 8  # How many steps (samples) to use for training
+MIN_REPLAY_MEMORY_SIZE = 1  # Minimum number of steps in a memory to start training
+MINIBATCH_SIZE = 1  # How many steps (samples) to use for training
+
 UPDATE_TARGET_EVERY = 4  # Terminal states (end of episodes)
 MODEL_NAME = '2x256'
-MIN_REWARD = 4  # For model save
+MIN_REWARD = 7  # For model save
 
 #  Stats settings
 AGGREGATE_STATS_EVERY = 2  # episodes
