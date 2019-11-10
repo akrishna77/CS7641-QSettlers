@@ -69,7 +69,8 @@ class DQNAgent:
     def __init__(self):
         #Main Model - used to actually fit
         self.model = self.create_model()
-        
+        self.history = None
+            
         #Target model - used to predict, updated every so episodes or epochs
         self.target_model = self.create_model()
         self.target_model.set_weights(self.model.get_weights())
@@ -150,8 +151,8 @@ class DQNAgent:
 
         X = np.expand_dims(X, axis=2)
             
-        self.model.fit(np.array(X), np.array(y), batch_size = MINIBATCH_SIZE,
-                      verbose = 0, shuffle=False, callbacks=[self.tensorboard] if terminal_state else None)
+        self.history = self.model.fit(np.array(X), np.array(y), batch_size = MINIBATCH_SIZE,
+                      verbose = 2, shuffle=False, callbacks=[self.tensorboard] if terminal_state else None)
         
         #Update count for updating target_model
         if terminal_state:
@@ -275,7 +276,9 @@ class JSettlersServer:
                     average_reward = sum(self.ep_rewards[-AGGREGATE_STATS_EVERY:])/len(self.ep_rewards[-AGGREGATE_STATS_EVERY:])
                     min_reward = min(self.ep_rewards[-AGGREGATE_STATS_EVERY:])
                     max_reward = max(self.ep_rewards[-AGGREGATE_STATS_EVERY:])
-                    self.agent.tensorboard.update_stats(reward_avg=average_reward, reward_min=min_reward, reward_max=max_reward, epsilon=self.agent.epsilon)
+                    loss = self.agent.history.history["loss"][0]
+                    accuracy = self.agent.history.history["acc"][0]
+                    self.agent.tensorboard.update_stats(loss=loss, accuracy=accuracy, reward_avg=average_reward, reward_min=min_reward, reward_max=max_reward, epsilon=self.agent.epsilon)
                     self.curr_episode += 1
                     # Save model
                     if(min_reward >= MIN_REWARD):
