@@ -120,6 +120,7 @@ class DQNAgent:
         #Grab a sample from replay_memory, use as batch to fit() target_model        
         #If replay_memory is too small, sampling from it will always return same sample and will result in overfitting
         if len(self.replay_memory) < MIN_REPLAY_MEMORY_SIZE:
+            print("Replay memory too small!")
             return
         
         minibatch = random.sample(self.replay_memory, MINIBATCH_SIZE)
@@ -175,7 +176,7 @@ class JSettlersServer:
         self.last_action = None
 
         #Used for logging models and stats
-        self.ep_rewards = []
+        self.ep_rewards = [0]
         self.curr_episode = 1
         self.standing_log = "agent_standings.csv"
         self.standing_results = [0,0,0,0]
@@ -201,7 +202,7 @@ class JSettlersServer:
                 print("Considering Trade ... ")
                 action = self.handle_msg(msg)
                 conn.send((str(action) + '\n').encode(encoding='UTF-8'))
-                print("Result: " + str(action))
+                print("Result: " + str(action) + "\n")
             except socket.timeout:
                 print("Timeout or error occured. Exiting ... ")
                 break
@@ -248,7 +249,7 @@ class JSettlersServer:
             print("Result: ", is_over)
             if "true" in is_over:
                 final_placing = int(msg_args[2])
-                print("Game end. Final Placing: " + str(final_placing))
+                print("Game end. Final Placing: " + str(final_placing) + "\n\n")
                 if (final_placing == 1):
                     reward = 10
                 elif (final_placing == 2):
@@ -261,7 +262,7 @@ class JSettlersServer:
                 self.write_result(final_placing)
 
                 if self.prev_vector is None:
-                    print("Game with one move; ignoring result ... ")
+                    print("Game with one move; ignoring result ...\n\n")
                     return None
 
                 feat_vector = [0 for x in self.prev_vector]
@@ -291,7 +292,7 @@ class JSettlersServer:
                     self.agent.epsilon *= self.agent.EPSILON_DECAY
                     self.agent.epsilon = max(self.agent.MIN_EPSILON, self.agent.epsilon)
             else:
-                print("Unfinished game; ignoring result ... ")
+                print("Unfinished game; ignoring result ...\n\n")
 
             return None
 
