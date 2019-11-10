@@ -127,10 +127,11 @@ class DQNAgent:
         
         #Get Q Values
         current_states = np.array([transition[0] for transition in minibatch]) #Normalizing and sample states
+        current_states = np.expand_dims(current_states, axis=0)
         current_qs_list = self.model.predict(current_states)
         
         new_current_states = np.array([transition[3] for transition in minibatch])
-        
+        new_current_states = np.expand_dims(new_current_states, axis=0)
         future_qs_list = self.target_model.predict(new_current_states)
         
         X = []
@@ -144,13 +145,12 @@ class DQNAgent:
                 new_q = reward
                 
             current_qs = current_qs_list[index]
-            
             current_qs[action] = new_q
             
             X.append(current_state)
             y.append(current_qs)
 
-        X = np.expand_dims(X, axis=2)
+        X = np.expand_dims(X, axis=0)
             
         self.history = self.model.fit(np.array(X), np.array(y), batch_size = MINIBATCH_SIZE,
                       verbose = 2, shuffle=False, callbacks=[self.tensorboard] if terminal_state else None)
