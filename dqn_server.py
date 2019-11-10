@@ -259,6 +259,10 @@ class JSettlersServer:
 
                 self.write_result(final_placing)
 
+                if self.prev_vector is None:
+                    print("Game with one move; ignoring result ... ")
+                    return None
+
                 feat_vector = [0 for x in self.prev_vector]
                 self.agent.update_replay_memory((self.prev_vector, self.last_action, reward, feat_vector))
                 self.agent.train(True)
