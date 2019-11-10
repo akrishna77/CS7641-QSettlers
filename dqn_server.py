@@ -217,7 +217,10 @@ class JSettlersServer:
 
 
     def handle_msg(self, msg):
+        self.agent.tensorboard.step = self.curr_episode
+        print("Episode: ", self.curr_episode)
         msg_args = msg.split("|")
+
         if msg_args[0] == "trade": #We're still playing a game; update our agent based on the rewards returned and take an action
             my_vp = int(msg_args[1])
             opp_vp = int(msg_args[2])
@@ -238,6 +241,7 @@ class JSettlersServer:
             self.prev_vector = feat_vector
             self.last_action = action
             return action
+
         elif msg_args[0] == "end": #The game has ended, update our agent based on the rewards, update our logs, and reset for the next game
             is_over = str(msg_args[1])
             print("Result: ", is_over)
@@ -272,6 +276,8 @@ class JSettlersServer:
                     # Save model
                     if(min_reward >= MIN_REWARD):
                         self.agent.model.save(f'models/{MODEL_NAME}__{max_reward:_>7.2f}max_{average_reward:_>7.2f}avg_{min_reward:_>7.2f}min__{int(time.time())}.model')
+                else:
+                    self.curr_episode += 1
 
                     # Decay epsilon
                 if self.agent.epsilon > self.agent.MIN_EPSILON:
