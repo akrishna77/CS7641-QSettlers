@@ -22,21 +22,15 @@ import tensorflow
 OBSERVATION_SPACE_SIZE = (1,22)
 ACTION_SPACE_SIZE = 2
 DISCOUNT = 0.99
-REPLAY_MEMORY_SIZE = 500  # How many last steps to keep for model training
+REPLAY_MEMORY_SIZE = 100  # How many last steps to keep for model training
 MIN_REPLAY_MEMORY_SIZE = 1_000  # Minimum number of steps in a memory to start training
-MINIBATCH_SIZE = 16  # How many steps (samples) to use for training
+MINIBATCH_SIZE = 8  # How many steps (samples) to use for training
 UPDATE_TARGET_EVERY = 4  # Terminal states (end of episodes)
 MODEL_NAME = '2x256'
-MIN_REWARD = -200  # For model save
-MEMORY_FRACTION = 0.20
-
-# Environment settings
-EPISODES = 100
+MIN_REWARD = 4  # For model save
 
 #  Stats settings
-AGGREGATE_STATS_EVERY = 50  # episodes
-SHOW_PREVIEW = False
-
+AGGREGATE_STATS_EVERY = 2  # episodes
 
 # Own Tensorboard class, used to ignore lots of the operations done per call to fit()
 class ModifiedTensorBoard(TensorBoard):
@@ -180,7 +174,7 @@ class JSettlersServer:
         self.last_action = None
 
         #Used for logging models and stats
-        self.ep_rewards = [-200]
+        self.ep_rewards = []
         self.curr_episode = 1
         self.standing_log = "agent_standings.csv"
         self.standing_results = [0,0,0,0]
@@ -223,7 +217,10 @@ class JSettlersServer:
 
 
     def handle_msg(self, msg):
+        self.agent.tensorboard.step = self.curr_episode
+        print("Episode: ", self.curr_episode)
         msg_args = msg.split("|")
+
         if msg_args[0] == "trade": #We're still playing a game; update our agent based on the rewards returned and take an action
             my_vp = int(msg_args[1])
             opp_vp = int(msg_args[2])
@@ -244,6 +241,7 @@ class JSettlersServer:
             self.prev_vector = feat_vector
             self.last_action = action
             return action
+
         elif msg_args[0] == "end": #The game has ended, update our agent based on the rewards, update our logs, and reset for the next game
             is_over = str(msg_args[1])
             print("Result: ", is_over)
@@ -261,6 +259,10 @@ class JSettlersServer:
 
                 self.write_result(final_placing)
 
+                if self.prev_vector is None:
+                    print("Game with one move; ignoring result ... ")
+                    return None
+
                 feat_vector = [0 for x in self.prev_vector]
                 self.agent.update_replay_memory((self.prev_vector, self.last_action, reward, feat_vector))
                 self.agent.train(True)
@@ -276,7 +278,10 @@ class JSettlersServer:
                     self.agent.tensorboard.update_stats(reward_avg=average_reward, reward_min=min_reward, reward_max=max_reward, epsilon=self.agent.epsilon)
                     self.curr_episode += 1
                     # Save model
-                    self.agent.model.save(f'models/{MODEL_NAME}__{max_reward:_>7.2f}max_{average_reward:_>7.2f}avg_{min_reward:_>7.2f}min__{int(time.time())}.model')
+                    if(min_reward >= MIN_REWARD):
+                        self.agent.model.save(f'models/{MODEL_NAME}__{max_reward:_>7.2f}max_{average_reward:_>7.2f}avg_{min_reward:_>7.2f}min__{int(time.time())}.model')
+                else:
+                    self.curr_episode += 1
 
                     # Decay epsilon
                 if self.agent.epsilon > self.agent.MIN_EPSILON:
