@@ -24,12 +24,12 @@ ACTION_SPACE_SIZE = 2
 DISCOUNT = 0.99
 
 REPLAY_MEMORY_SIZE = 100  # How many last steps to keep for model training
-MIN_REPLAY_MEMORY_SIZE = 1  # Minimum number of steps in a memory to start training
-MINIBATCH_SIZE = 1  # How many steps (samples) to use for training
+MIN_REPLAY_MEMORY_SIZE = 16  # Minimum number of steps in a memory to start training
+MINIBATCH_SIZE = 8  # How many steps (samples) to use for training
 
 UPDATE_TARGET_EVERY = 4  # Terminal states (end of episodes)
 MODEL_NAME = '2x256'
-MIN_REWARD = 7  # For model save
+MIN_REWARD = 0  # For model save
 
 #  Stats settings
 AGGREGATE_STATS_EVERY = 2  # episodes
@@ -91,7 +91,7 @@ class DQNAgent:
     def create_model(self):
         #Create model for generating Q values
         model = Sequential()
-        model.add(Conv1D(filters=256, kernel_size=1, input_shape=OBSERVATION_SPACE_SIZE))
+        model.add(Conv1D(filters=256, kernel_size=1, input_shape=OBSERVATION_SPACE_SIZE, batch_input_shape=(MINIBATCH_SIZE, 1, 22)))
         model.add(Activation("relu"))
         model.add(MaxPooling1D(1))
         model.add(Dropout(0.2))
@@ -130,10 +130,12 @@ class DQNAgent:
         #Get Q Values
         current_states = np.array([transition[0] for transition in minibatch]) #Normalizing and sample states
         current_states = np.expand_dims(current_states, axis=0)
-        current_qs_list = self.model.predict(current_states)
+        current_states = current_states.reshape(MINIBATCH_SIZE,1,-1)
+        current_qs_list = self.model.predict(current_states, batch_size=MINIBATCH_SIZE)
         
         new_current_states = np.array([transition[3] for transition in minibatch])
         new_current_states = np.expand_dims(new_current_states, axis=0)
+        new_current_states = new_current_states.reshape(MINIBATCH_SIZE,1,-1)
         future_qs_list = self.target_model.predict(new_current_states)
         
         X = []
@@ -153,7 +155,8 @@ class DQNAgent:
             y.append(current_qs)
 
         X = np.expand_dims(X, axis=0)
-            
+
+        X = X.reshape(MINIBATCH_SIZE,1,-1)      
         self.history = self.model.fit(np.array(X), np.array(y), batch_size = MINIBATCH_SIZE,
                       verbose = 2, shuffle=False, callbacks=[self.tensorboard] if terminal_state else None)
         
@@ -310,5 +313,5 @@ class JSettlersServer:
 
 if __name__ == "__main__":
     dqnagent = DQNAgent()
-    server = JSettlersServer("localhost", 2004, dqnagent, timeout=60)
+    server = JSettlersServer("localhost", 2004, dqnagent, timeout=120)
     server.run()
