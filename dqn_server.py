@@ -21,6 +21,8 @@ import tensorflow
 
 OBSERVATION_SPACE_SIZE = (1,22)
 ACTION_SPACE_SIZE = 2
+SETTLEMENT_OBSERVATION_SPACE_SIZE = (1,87) # 37 tiles, 1 robber, 5 ports, 20 settlements, 20 cities
+SETTLEMENT_ACTION_SPACE_SIZE = 37 # 37 tiles to place possible settlements
 DISCOUNT = 0.99
 
 REPLAY_MEMORY_SIZE = 100  # How many last steps to keep for model training
@@ -29,6 +31,7 @@ MINIBATCH_SIZE = 8  # How many steps (samples) to use for training
 
 UPDATE_TARGET_EVERY = 4  # Terminal states (end of episodes)
 MODEL_NAME = '2x256'
+SETTLEMENTS_MODEL_NAME = 'settlements'
 MIN_REWARD = 0  # For model save
 
 #  Stats settings
@@ -72,11 +75,11 @@ class DQNAgent:
         #Main Model - used to actually fit
         self.model = self.create_model()
         self.history = None
-            
+
         #Target model - used to predict, updated every so episodes or epochs
         self.target_model = self.create_model()
         self.target_model.set_weights(self.model.get_weights())
-        
+
         self.replay_memory = deque(maxlen=REPLAY_MEMORY_SIZE) #Used to create 'batches' for fitting
         self.tensorboard = ModifiedTensorBoard(log_dir=f"logs/{MODEL_NAME}-{int(time.time())}")
         self.target_update_counter = 0 #Tracking how many more examples to see before updating target_model
@@ -85,9 +88,9 @@ class DQNAgent:
         self.epsilon = 1  # not a constant, going to be decayed
         self.EPSILON_DECAY = 0.975
         self.MIN_EPSILON = 0.001
-        
-        
-        
+
+
+
     def create_model(self):
         #Create model for generating Q values
         model = Sequential()
@@ -95,83 +98,182 @@ class DQNAgent:
         model.add(Activation("relu"))
         model.add(MaxPooling1D(1))
         model.add(Dropout(0.2))
-        
+
         model.add(Conv1D(256, 1))
         model.add(Activation("relu"))
         model.add(MaxPooling1D(1))
         model.add(Dropout(0.2))
-        
+
         model.add(Flatten())
         model.add(Dense(64))
-        
+
         model.add(Dense(ACTION_SPACE_SIZE, activation="linear"))
         model.compile(loss="mse", optimizer=Adam(lr = 0.001), metrics=["accuracy"])
-        
+
         return model
-    
-    
+
+
     def update_replay_memory(self, transition):
         #Update replay_memory with new (state, action, reward, new_state, done)
         self.replay_memory.append(transition)
-        
-        
+
+
     def get_qs(self, terminal_state):
         return self.model.predict(np.array(terminal_state).reshape(-1, *terminal_state.shape))[0]
-    
+
     def train(self, terminal_state):
-        #Grab a sample from replay_memory, use as batch to fit() target_model        
+        #Grab a sample from replay_memory, use as batch to fit() target_model
         #If replay_memory is too small, sampling from it will always return same sample and will result in overfitting
         if len(self.replay_memory) < MIN_REPLAY_MEMORY_SIZE:
             print("Replay memory too small!")
             return
-        
+
         minibatch = random.sample(self.replay_memory, MINIBATCH_SIZE)
-        
+
         #Get Q Values
         current_states = np.array([transition[0] for transition in minibatch]) #Normalizing and sample states
         current_states = np.expand_dims(current_states, axis=0)
         current_states = current_states.reshape(MINIBATCH_SIZE,1,-1)
         current_qs_list = self.model.predict(current_states, batch_size=MINIBATCH_SIZE)
-        
+
         new_current_states = np.array([transition[3] for transition in minibatch])
         new_current_states = np.expand_dims(new_current_states, axis=0)
         new_current_states = new_current_states.reshape(MINIBATCH_SIZE,1,-1)
         future_qs_list = self.target_model.predict(new_current_states)
-        
+
         X = []
         y = []
-        
+
         for index, (current_state, action, reward, new_current_state, done) in enumerate(minibatch):
             if not done: #Perform operations; environment not over
                 max_future_q = np.max(future_qs_list[index])
                 new_q = reward + DISCOUNT * max_future_q
             else:
                 new_q = reward
-                
+
             current_qs = current_qs_list[index]
             current_qs[action] = new_q
-            
+
             X.append(current_state)
             y.append(current_qs)
 
         X = np.expand_dims(X, axis=0)
 
-        X = X.reshape(MINIBATCH_SIZE,1,-1)      
+        X = X.reshape(MINIBATCH_SIZE,1,-1)
         self.history = self.model.fit(np.array(X), np.array(y), batch_size = MINIBATCH_SIZE,
                       verbose = 2, shuffle=False, callbacks=[self.tensorboard] if terminal_state else None)
-        
+
         #Update count for updating target_model
         if terminal_state:
             self.target_update_counter += 1
-        
+
         if self.target_update_counter > UPDATE_TARGET_EVERY:
             #Update target_model
             self.target_model.set_weights(self.model.get_weights())
             self.target_update_counter = 0
-            
+
+class DQNSettlementAgent:
+    def __init__(self):
+        #Main Model - used to actually fit
+        self.model = self.create_model()
+        self.history = None
+
+        #Target model - used to predict, updated every so episodes or epochs
+        self.target_model = self.create_model()
+        self.target_model.set_weights(self.model.get_weights())
+
+        self.replay_memory = deque(maxlen=REPLAY_MEMORY_SIZE) #Used to create 'batches' for fitting
+        self.tensorboard = ModifiedTensorBoard(log_dir=f"logs/{SETTLEMENTS_MODEL_NAME}-{int(time.time())}")
+        self.target_update_counter = 0 #Tracking how many more examples to see before updating target_model
+
+        #Exploration settings
+        self.epsilon = 1  # not a constant, going to be decayed
+        self.EPSILON_DECAY = 0.975
+        self.MIN_EPSILON = 0.001
+
+
+
+    def create_model(self):
+        #Create model for generating Q values
+        model = Sequential()
+        model.add(Conv1D(filters=256, kernel_size=1, input_shape=SETTLEMENT_OBSERVATION_SPACE_SIZE))
+        model.add(Activation("relu"))
+        model.add(MaxPooling1D(1))
+        model.add(Dropout(0.2))
+
+        model.add(Conv1D(256, 1))
+        model.add(Activation("relu"))
+        model.add(MaxPooling1D(1))
+        model.add(Dropout(0.2))
+
+        model.add(Flatten())
+        model.add(Dense(64))
+
+        model.add(Dense(ACTION_SPACE_SIZE, activation="linear"))
+        model.compile(loss="mse", optimizer=Adam(lr = 0.001), metrics=["accuracy"])
+
+        return model
+
+
+    def update_replay_memory(self, transition):
+        #Update replay_memory with new (state, action, reward, new_state, done)
+        self.replay_memory.append(transition)
+
+
+    def get_qs(self, terminal_state):
+        return self.model.predict(np.array(terminal_state).reshape(-1, *terminal_state.shape))[0]
+
+    def train(self, terminal_state):
+        #Grab a sample from replay_memory, use as batch to fit() target_model
+        #If replay_memory is too small, sampling from it will always return same sample and will result in overfitting
+        if len(self.replay_memory) < MIN_REPLAY_MEMORY_SIZE:
+            print("Replay memory too small!")
+            return
+
+        minibatch = random.sample(self.replay_memory, MINIBATCH_SIZE)
+
+        #Get Q Values
+        current_states = np.array([transition[0] for transition in minibatch]) #Normalizing and sample states
+        current_states = np.expand_dims(current_states, axis=0)
+        current_qs_list = self.model.predict(current_states)
+
+        new_current_states = np.array([transition[3] for transition in minibatch])
+        new_current_states = np.expand_dims(new_current_states, axis=0)
+        future_qs_list = self.target_model.predict(new_current_states)
+
+        X = []
+        y = []
+
+        for index, (current_state, action, reward, new_current_state, done) in enumerate(minibatch):
+            if not done: #Perform operations; environment not over
+                max_future_q = np.max(future_qs_list[index])
+                new_q = reward + DISCOUNT * max_future_q
+            else:
+                new_q = reward
+
+            current_qs = current_qs_list[index]
+            current_qs[action] = new_q
+
+            X.append(current_state)
+            y.append(current_qs)
+
+        X = np.expand_dims(X, axis=0)
+
+        self.history = self.model.fit(np.array(X), np.array(y), batch_size = MINIBATCH_SIZE,
+                      verbose = 2, shuffle=False, callbacks=[self.tensorboard] if terminal_state else None)
+
+        #Update count for updating target_model
+        if terminal_state:
+            self.target_update_counter += 1
+
+        if self.target_update_counter > UPDATE_TARGET_EVERY:
+            #Update target_model
+            self.target_model.set_weights(self.model.get_weights())
+            self.target_update_counter = 0
+
 class JSettlersServer:
 
-    def __init__(self, host, port, dqnagent, timeout=None):
+    def __init__(self, host, port, dqnagent, dqnSettlementAgent, imeout=None):
         # Used for training agent
         self.agent = dqnagent
         self.host = host
@@ -179,6 +281,10 @@ class JSettlersServer:
         self.timeout = timeout
         self.prev_vector = None
         self.last_action = None
+
+        self.settlementagent = dqnSettlementAgent
+        self.prev_vector_settlement = None
+        self.last_action_settlement = None
 
         #Used for logging models and stats
         self.ep_rewards = [0]
@@ -204,7 +310,7 @@ class JSettlersServer:
                 conn, addr = soc.accept()     # Establish connection with client.
                 length_of_message = int.from_bytes(conn.recv(2), byteorder='big')
                 msg = conn.recv(length_of_message).decode("UTF-8")
-                print("Considering Trade ... ")
+                print("Considering Trade or Settlement placement ... ")
                 action = self.handle_msg(msg)
                 conn.send((str(action) + '\n').encode(encoding='UTF-8'))
                 print("Result: " + str(action) + "\n")
@@ -221,11 +327,21 @@ class JSettlersServer:
             action = np.random.randint(0, ACTION_SPACE_SIZE)
         return action
 
+    def get_action_settlement(self, state):
+        state = np.array(state)
+        state = state.reshape(SETTLEMENT_OBSERVATION_SPACE_SIZE)
+        if np.random.random() > self.settlementagent.epsilon:
+            action = np.argmax(self.settlementagent.get_qs(state))
+        else:
+            action = np.random.randint(0, SETTLEMENT_ACTION_SPACE_SIZE)
+        return action
 
 
     def handle_msg(self, msg):
         self.agent.tensorboard.step = self.curr_episode
-        print("Episode: ", self.curr_episode)
+        self.settlementagent.tensorboard.step = self.curr_episode_settlement
+        print("Trade Episode: ", self.curr_episode)
+        print("Settlement Episode: ", self.curr_episode_settlement)
         msg_args = msg.split("|")
 
         if msg_args[0] == "trade": #We're still playing a game; update our agent based on the rewards returned and take an action
@@ -236,7 +352,7 @@ class JSettlersServer:
             get = [int(x) for x in msg_args[5].split(",")]
             give = [int(x) for x in msg_args[6].split(",")]
             #Construct total feature vector
-            feat_vector = np.array([my_vp] + [opp_vp] + my_res + opp_res + get + give) 
+            feat_vector = np.array([my_vp] + [opp_vp] + my_res + opp_res + get + give)
 
             if self.prev_vector is not None:    # If we have a previous state, run a train step on the agent for the last action taken
                 self.agent.update_replay_memory((self.prev_vector, self.last_action, 0, feat_vector, False))
@@ -248,6 +364,21 @@ class JSettlersServer:
             self.prev_vector = feat_vector
             self.last_action = action
             return action
+        elif msg_args[0] == "settlement": #We're still playing a game; update our agent based on the rewards returned and take an action
+            #Construct total feature vector
+            feat_vector = np.array([int(x) for x in msg_args[1:]])
+
+            if self.prev_vector is not None:    # If we have a previous state, run a train step on the agent for the last action taken
+                self.settlementagent.update_replay_memory((self.prev_vector_settlement, self.last_action_settlement, 0, feat_vector, False))
+                self.settlementagent.train(False)
+            else:
+                print("First step. Ignoring training ... ")
+            # Update actions so that on the next step, we'll train on these actions
+            action = self.get_action_settlement(feat_vector)
+            self.prev_vector_settlement = feat_vector
+            self.last_action_settlement = action
+            return action
+
 
         elif msg_args[0] == "end": #The game has ended, update our agent based on the rewards, update our logs, and reset for the next game
             is_over = str(msg_args[1])
@@ -313,5 +444,6 @@ class JSettlersServer:
 
 if __name__ == "__main__":
     dqnagent = DQNAgent()
-    server = JSettlersServer("localhost", 2004, dqnagent, timeout=120)
+    dqnSettlementAgent = DQNSettlementAgent()
+    server = JSettlersServer("localhost", 2004, dqnagent, dqnSettlementAgent, timeout=120)
     server.run()

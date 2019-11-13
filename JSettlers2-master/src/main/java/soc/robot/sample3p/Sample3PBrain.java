@@ -36,6 +36,13 @@ import java.io.DataOutputStream;
 
 import java.net.Socket;
 
+import soc.game.SOCBoard;
+import soc.game.SOCBoardLarge;
+import java.util.ArrayList;
+import java.util.List;
+import soc.game.SOCSettlement;
+import soc.game.SOCCity;
+
 /**
  * Sample of a trivially simple "third-party" subclass of {@link SOCRobotBrain}
  * Instantiated by {@link Sample3PClient}.
@@ -91,13 +98,13 @@ public class Sample3PBrain extends SOCRobotBrain
             serverout = new DataOutputStream(servercon.getOutputStream());
             serverout.writeUTF("I just set player's data?");
             serverout.flush();
-            serverout.close();  
+            serverout.close();
             servercon.close();
             }
          catch(Exception e){
             System.err.println("Whoops!");
          }
-         */   
+         */
 
         super.setOurPlayerData();
 
@@ -172,7 +179,7 @@ public class Sample3PBrain extends SOCRobotBrain
     @Override
     protected int considerOffer(SOCTradeOffer offer)
     {
-        
+
         if (! offer.getTo()[getOurPlayerNumber()])
         {
             return SOCRobotNegotiator.IGNORE_OFFER;
@@ -195,23 +202,24 @@ public class Sample3PBrain extends SOCRobotBrain
             //Get & format trade contents
             String getData = extractOfferGetData(offer);
             String giveData = extractOfferGiveData(offer);
-            
+
 
             //Pass game state info to DQN server
             servercon = new Socket("localhost", 2004);
             servercon.setSoTimeout(300000);
             serverin = new DataInputStream(servercon.getInputStream());
             serverout = new DataOutputStream(servercon.getOutputStream());
+
+            ////////////////////// TRADE DECISION ////////////////////////
             String msg = "trade|" + my_vp + "|" + opp_vp + "|" + my_resources + "|" + opponent_resources + "|" + getData + "|" + giveData;
             serverout.writeUTF(msg);
-
             //Receive decision from DQN server
             decision = serverin.readLine();
 
             serverout.flush();
-            serverout.close(); 
-            serverin.close();   
-            servercon.close();  
+            serverout.close();
+            serverin.close();
+            servercon.close();
         }
          catch(Exception e){
             System.err.println("Whoops! Connection with server lost ... ");
@@ -237,5 +245,76 @@ public class Sample3PBrain extends SOCRobotBrain
 
         return super.considerOffer(offer);
         */
+    }
+
+    @Override
+    protected int considerSettlement()
+    {
+        String decision = "";
+
+        try{
+            //Pass game state info to DQN server
+            servercon = new Socket("localhost", 2004);
+            servercon.setSoTimeout(300000);
+            serverin = new DataInputStream(servercon.getInputStream());
+            serverout = new DataOutputStream(servercon.getOutputStream());
+
+            ////////////////////// SETTLEMENTS DECISION ////////////////////////
+            //Pass game state info to DQN server
+            SOCBoard board = getGame().getBoard();
+            int[] hexLayout = board.getHexLayout();
+            ArrayList<Integer> ports = board.ports;
+            int robberHex = board.getRobberHex();
+            ArrayList<SOCSettlement> settlements = board.getSettlements();
+            ArrayList<SOCCity> cities = board.getCities();
+            String board_state_msg = "";
+            for(int i = 0; i < hexLayout.length; i++){ // 37 tiles
+                board_state_msg += String.valueOf(hexLayout[i]) + "|";
+            }
+            for(int i = 0; i < 5; i++){ //ports.size(); i++){ // 5 ports
+                if(i <= ports.size() - 1){
+                    board_state_msg += String.valueOf(ports[i]) + "|";
+                }
+                else{
+                    board_state_msg += "-1|";
+                }
+            }
+            board_state_msg += String.valueOf(robberHex) + "|"; // 1 robber
+            int max_num_settlements = 4 * 5; //board.getPlayers().length * 5;
+            for(int i = 0; i < max_num_settlements; i++){ // 20 settlements
+                if(i <= settlements.size() - 1){
+                    board_state_msg += String.valueOf(settlements[i].getCoordinates()) + "|";
+                }
+                else{
+                    board_state_msg += "-1|";
+                }
+            }
+            for(int i = 0; i < max_num_settlements; i++){ // 20 cities
+                if(i < cities.size()-1){
+                    board_state_msg += String.valueOf(cities[i].getCoordinates()) + "|";
+                }
+                else if(i == cities.size()-1){
+                    board_state_msg += String.valueOf(cities[i].getCoordinates()) + "|";
+                } else{
+                    board_state_msg += String.valueOf(cities[i].getCoordinates());
+                }
+            }
+            String msg = "settlement|" + board_state_msg;
+            serverout.writeUTF(msg);
+
+            //Receive decision from DQN server
+            decision = serverin.readLine();
+
+            serverout.flush();
+            serverout.close();
+            serverin.close();
+            servercon.close();
+        }
+         catch(Exception e){
+            System.err.println("Whoops! Connection with server lost ... ");
+         }
+
+        Sytem.err.println("Requesting settlement to be placed on tile #" + decision);
+        return decision;
     }
 }
